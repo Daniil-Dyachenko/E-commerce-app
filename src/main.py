@@ -45,16 +45,13 @@ async def lifespan(app: FastAPI):
     logger.info("Database connections closed. Shutdown complete.")
 
 app = FastAPI(lifespan=lifespan)
-
+logger = logging.getLogger("app")
 
 @app.get("/health")
 def health_check(response: Response):
-    is_db_up = check_db_connection()
-    if is_db_up:
-        logger.info("Health check passed. DB is connected.")
+    if check_db_connection():
         return {"status": "ok", "database": "connected"}
     else:
-        logger.error("Health check failed. DB is unreachable.")
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {"status": "error", "database": "disconnected"}
 

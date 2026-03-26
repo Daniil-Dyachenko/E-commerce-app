@@ -1,97 +1,96 @@
 # E-Commerce-app
 
-> Підготовка застосунку — Readiness & Standardization
+> Лабораторна робота №1: Контейнеризація та локальна оркестрація
 
 ---
+## 1. Технологічний стек
 
-## 1.Збірка та запуск
+| Компонент          |           Назва         |
+|--------------------|-------------------------|
+| `Backend`          | `FastAPI (Python 3.10)` |
+| `Database`         | `PostgreSQL 15`         |
+| `ORM`              | `SQLAlchemy + Alembic`  |
+| `Containerization` | `Docker, Docker Compose`|
+| `CI/CD`            | `GitHub Actions`        |
 
-Для локального розгортання застосунку необхідно мати встановлені **Python** та **Docker** (для запуску бази даних).
 
-**Крок 1. Запуск бази даних PostgreSQL у Docker:**
+## 2. Запуск інфраструктури
+
+Для запуску потрібно мати встановлений Docker та Docker Compose.
+
+Виконайте команду для збірки та запуску:
+
 ```bash
-docker start my-postgres
+docker compose up -d --build
 ```
 
-**Крок 2. Встановлення залежностей:**
-```bash
-pip install -r requirements.txt
-```
+Нижче видно успішний запуск контейнерів. База даних переходить у стан healthy, після чого стартує застосунок (контейнер app), який теж показує статус Up.
 
-**Крок 3. Запуск сервера:**
-```bash
-uvicorn src.main:app --port 8080
-```
-**Крок 4. Запустити юніт-тести:**
-```bash
-pytest
-```
+<img width="744" height="108" alt="image" src="https://github.com/user-attachments/assets/698c1584-6d6f-41e0-987c-e5c296440cb9" />
 
-## 2.Конфігурація через середовище (12-Factor App)
+---
+## 3.Змінні оточення
 
-Застосунок зчитує всі налаштування бази даних зі змінних оточення. Жодні чутливі дані не захардкоджені в сирцевому коді.
+Застосунок зчитує всі налаштування бази даних зі змінних оточення.
 
 | Змінна         | Значення за замовчуванням |
 |----------------|---------------------------|
-| `DB_HOST`      | `127.0.0.1`               |
-| `DB_PORT`      | `5433`                    |
+| `DB_HOST`      | `db`                      |
+| `DB_PORT`      | `5432`                    |
 | `DB_NAME`      | `ecommerce_db`            |
 | `DB_USER`      | `postgres`                |
 | `DB_PASSWORD`  | `postgres`                |
 
 ---
 
-## ️3.Автоматичне керування схемою БД
-
-При запуску застосунок автоматично перевіряє та застосовує всі наявні міграції до бази даних за допомогою інструменту Alembic.
-
-Ручний запуск SQL-скриптів **не потрібен**.
-
-<img width="930" height="152" alt="image" src="https://github.com/user-attachments/assets/71c0bc92-4dfb-4c14-89c9-179d3216b1a7" />
+## ️4.Контейнеризація (Dockerfile)
+Використано Multi-stage build для оптимізації розміру фінального образу.
+Базовий образ — python:3.10-slim.
+Застосунок запускається від не-root користувача.
 
 ---
 
-## 4."Глибока" перевірка стану (Dependency-Aware Health Checks)
+## ️5.Оркестрація (Docker Compose)
+Описано два сервіси: app (FastAPI) та db (PostgreSQL).
+Налаштовано внутрішню мережу ecommerce-network для ізоляції контейнерів.
+Використано depends_on з condition: service_healthy для коректного порядку запуску.
 
-**Ендпоінт:** /health перевіряє не лише роботу самого сервера, а й доступність бази даних PostgreSQL.
+---
+
+## 6.Стійкість та Health Check
+
+Реалізовано ендпоінт /health, який перевіряє реальний стан з'єднання з БД.
+Якщо база даних недоступна, сервіс повертає статус 503 Service Unavailable.
 
 ### Успішний статус (200 OK):
 ```bash
 $ curl -i http://localhost:8080/health
 ```
-<img width="832" height="203" alt="image" src="https://github.com/user-attachments/assets/8bfb541a-da28-487f-917d-287693b8951d" />
+<img width="978" height="221" alt="image" src="https://github.com/user-attachments/assets/1eb90866-1f07-4257-9861-b9768edc55c1" />
 
 
 ### Статус помилки при вимкненій БД (503 Service Unavailable):
 
 Після зупинки PostgreSQL:
 
-<img width="818" height="198" alt="image" src="https://github.com/user-attachments/assets/53828f6b-981a-4078-990b-175795205d7a" />
+<img width="978" height="314" alt="image" src="https://github.com/user-attachments/assets/7b95757b-7807-41ae-9f88-5d6a0f37664b" />
 
 ---
 
-## 5. Структуроване логування в JSON
+## 7. Структуроване логування в JSON
 
-Під час запуску застосунку в **STDOUT** виводяться JSON-об'єкти з обов'язковими полями: `timestamp`, `level`, `message`.
+Впроваджено JSON-логування для стандартного потоку виводу (STDOUT). з обов'язковими полями: `timestamp`, `level`, `message`.
 
-<img width="930" height="152" alt="image" src="https://github.com/user-attachments/assets/ed5c42ee-b468-4f0c-af4a-4febae20deb2" />
+<img width="977" height="77" alt="image" src="https://github.com/user-attachments/assets/6001adfa-8142-4186-8a96-f3d7549e64bb" />
 
 ---
 
-## 6. Плавне завершення роботи (Graceful Shutdown)
-Застосунок коректно обробляє сигнал SIGTERM/SIGINT (Ctrl+C). Він завершує обробку поточних запитів та безпечно закриває всі з'єднання з базою даних.
+## 8. Автоматичне оцінювання і GitHub Actions 
 
-<img width="936" height="51" alt="image" src="https://github.com/user-attachments/assets/f829c573-c8e9-4331-820e-3e1c84ad22d1" />
+Надійність і правильність конфігурації підтверджується скриптом оцінювання lab1_test.sh. Проєкт містить налаштований пайплайн .github/workflows/lab1.yml. 
+При кожному push у репозиторій, GitHub Actions автоматично збирає та запускає контейнери через ```docker compose``` , після цього очікує готовність системи,
+тобто коли все підтягнеться і налаштується, після чого запускає скрипт tests/lab1_test.sh, за допомогою якого перевіряється правильність виконання даної Лабораторної роботи.
 
-
-## 7.Юніт-тести
-
-Завдяки налаштованому файлу pytest.ini, усі CRUD операції та перевірка стану (health check) перевіряються однією стандартною командою:
-```bash
-pytest
-```
-
-<img width="978" height="432" alt="image" src="https://github.com/user-attachments/assets/389b566a-febb-430f-b68a-93dbb9f70e83" />
-
+<img width="1543" height="465" alt="image" src="https://github.com/user-attachments/assets/577af682-e886-4135-87bf-2c471aed3255" />
 
 ---
