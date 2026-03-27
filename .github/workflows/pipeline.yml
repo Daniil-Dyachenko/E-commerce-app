@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - lab2
+      - lab3
+      - lab4
       - main
 
 env:
