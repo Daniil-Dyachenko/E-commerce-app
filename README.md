@@ -1,96 +1,73 @@
 # E-Commerce-app
 
-> Лабораторна робота №1: Контейнеризація та локальна оркестрація
+> Лабораторна робота №2: Автоматизація CI/CD та робота з container registry
 
 ---
-## 1. Технологічний стек
+## 1. CI/CD Pipeline:
+Налаштовано GitHub Actions workflow у файлі .github/workflows/pipeline.yml
 
-| Компонент          |           Назва         |
-|--------------------|-------------------------|
-| `Backend`          | `FastAPI (Python 3.10)` |
-| `Database`         | `PostgreSQL 15`         |
-| `ORM`              | `SQLAlchemy + Alembic`  |
-| `Containerization` | `Docker, Docker Compose`|
-| `CI/CD`            | `GitHub Actions`        |
+Нижче видно успішне виконання всього пайплайну (збірка, сканування та тестування):
+
+<img width="977" height="242" alt="image" src="https://github.com/user-attachments/assets/90930cd4-5745-4fc3-b31b-9b3f23f512b2" />
+
+---
+## 2. Container Registry:
+
+Образи автоматично публікуються виключно в GitHub Container Registry (ghcr.io).
+
+---
+
+## 3. Іменування образу:
+
+Налаштовано автоматичне приведення імені репозиторію до нижнього регістру. Образ зберігається у форматі ghcr.io/<username>/ecommerce-app
+
+<img width="978" height="188" alt="image" src="https://github.com/user-attachments/assets/2b4bd7aa-56d6-4eaf-84b4-e80f8f812baf" />
+
+---
+
+## 4. Tagging Strategy:
+
+При кожному успішному запуску пайплайну створюються та публікуються два теги: latest та унікальний sha - <git-commit-hash>
+
+<img width="977" height="73" alt="image" src="https://github.com/user-attachments/assets/1213917e-8d09-4ac8-8c25-0097993aa43f" />
+
+<img width="978" height="393" alt="image" src="https://github.com/user-attachments/assets/532957b7-3034-4a7e-b2da-4f5b68f420f3" />
+
+---
+
+## 5. Security Scan і Permissions & Auth:
+
+До пайплайну інтегровано сканер Trivy для автоматичної перевірки Docker-образу на наявність вразливостей перед релізом.
+Також було надано права```packages```: ```write``` для ```GITHUB_TOKEN```. Для авторизації в ghcr.io використовується ```docker/login-action```.
+
+---
+
+## 6. Автоматичне оцінювання і GitHub Actions 
+
+Надійність і правильність конфігурації підтверджується скриптом оцінювання lab2_test.sh. Він перевіряє доступність пакету у GHCR через GitHub API, 
+наявність обов'язкового тегу latest, а також унікального тегу sha. 
+
+<img width="976" height="336" alt="image" src="https://github.com/user-attachments/assets/14379717-5670-4b7d-875a-ea96371727a3" />
 
 
-## 2. Запуск інфраструктури
+<img width="799" height="81" alt="image" src="https://github.com/user-attachments/assets/79838a05-f9c2-41ee-a57f-e729dac43b38" />
 
-Для запуску потрібно мати встановлений Docker та Docker Compose.
+---
 
-Виконайте команду для збірки та запуску:
+## 7. Завантаження та запуск готового образу з GHCR
 
+1. Авторизація в GHCR:
 ```bash
-docker compose up -d --build
+docker login ghcr.io -u daniil-dyachenko
 ```
 
-Нижче видно успішний запуск контейнерів. База даних переходить у стан healthy, після чого стартує застосунок (контейнер app), який теж показує статус Up.
-
-<img width="744" height="108" alt="image" src="https://github.com/user-attachments/assets/698c1584-6d6f-41e0-987c-e5c296440cb9" />
-
----
-## 3.Змінні оточення
-
-Застосунок зчитує всі налаштування бази даних зі змінних оточення.
-
-| Змінна         | Значення за замовчуванням |
-|----------------|---------------------------|
-| `DB_HOST`      | `db`                      |
-| `DB_PORT`      | `5432`                    |
-| `DB_NAME`      | `ecommerce_db`            |
-| `DB_USER`      | `postgres`                |
-| `DB_PASSWORD`  | `postgres`                |
-
----
-
-## ️4.Контейнеризація (Dockerfile)
-Використано Multi-stage build для оптимізації розміру фінального образу.
-Базовий образ — python:3.10-slim.
-Застосунок запускається від не-root користувача.
-
----
-
-## ️5.Оркестрація (Docker Compose)
-Описано два сервіси: app (FastAPI) та db (PostgreSQL).
-Налаштовано внутрішню мережу ecommerce-network для ізоляції контейнерів.
-Використано depends_on з condition: service_healthy для коректного порядку запуску.
-
----
-
-## 6.Стійкість та Health Check
-
-Реалізовано ендпоінт /health, який перевіряє реальний стан з'єднання з БД.
-Якщо база даних недоступна, сервіс повертає статус 503 Service Unavailable.
-
-### Успішний статус (200 OK):
+2. Завантаження образу:
 ```bash
-$ curl -i http://localhost:8080/health
+docker pull ghcr.io/daniil-dyachenko/ecommerce-app:latest
 ```
-<img width="978" height="221" alt="image" src="https://github.com/user-attachments/assets/1eb90866-1f07-4257-9861-b9768edc55c1" />
 
-
-### Статус помилки при вимкненій БД (503 Service Unavailable):
-
-Після зупинки PostgreSQL:
-
-<img width="978" height="314" alt="image" src="https://github.com/user-attachments/assets/7b95757b-7807-41ae-9f88-5d6a0f37664b" />
-
----
-
-## 7. Структуроване логування в JSON
-
-Впроваджено JSON-логування для стандартного потоку виводу (STDOUT). з обов'язковими полями: `timestamp`, `level`, `message`.
-
-<img width="977" height="77" alt="image" src="https://github.com/user-attachments/assets/6001adfa-8142-4186-8a96-f3d7549e64bb" />
-
----
-
-## 8. Автоматичне оцінювання і GitHub Actions 
-
-Надійність і правильність конфігурації підтверджується скриптом оцінювання lab1_test.sh. Проєкт містить налаштований пайплайн .github/workflows/lab1.yml. 
-При кожному push у репозиторій, GitHub Actions автоматично збирає та запускає контейнери через ```docker compose``` , після цього очікує готовність системи,
-тобто коли все підтягнеться і налаштується, після чого запускає скрипт tests/lab1_test.sh, за допомогою якого перевіряється правильність виконання даної Лабораторної роботи.
-
-<img width="1543" height="465" alt="image" src="https://github.com/user-attachments/assets/577af682-e886-4135-87bf-2c471aed3255" />
-
+3. Запуск застосунку:
+```bash
+docker run -p 8080:8080 ghcr.io/daniil-dyachenko/ecommerce-app:latest
+```
 ---
