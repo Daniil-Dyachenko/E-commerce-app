@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - lab3
+      - lab4
       - main
 
 jobs:
